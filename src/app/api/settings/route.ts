@@ -1,24 +1,25 @@
 import { NextResponse } from 'next/server';
-import getDb from '@/lib/db';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export const dynamic = 'force-dynamic';
 
+const DEFAULTS = {
+  next_date: '',
+  description: 'Fresh wood-fired pizzas from my backyard brick oven. Made with love, local ingredients, and very hot fire.',
+  total_pizzas: 12,
+  contact: '',
+  reserved: 0,
+};
+
 export async function GET() {
   try {
-    const db = getDb();
+    const snap = await getDoc(doc(db, 'settings', 'config'));
+    const data = snap.exists() ? snap.data() : {};
+    const settings = { ...DEFAULTS, ...data };
 
-    const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
-    const settings: Record<string, string> = {};
-    for (const row of rows) {
-      settings[row.key] = row.value;
-    }
-
-    const reservedRow = db
-      .prepare('SELECT COALESCE(SUM(quantity), 0) as total FROM reservations WHERE cancelled = 0')
-      .get() as { total: number };
-
-    const totalPizzas = parseInt(settings.total_pizzas || '12', 10);
-    const reserved = reservedRow.total;
+    const totalPizzas = Number(settings.total_pizzas) || 12;
+    const reserved = Number(settings.reserved) || 0;
     const available = Math.max(0, totalPizzas - reserved);
 
     return NextResponse.json({

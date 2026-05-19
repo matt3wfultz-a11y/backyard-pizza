@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import getDb from '@/lib/db';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export const dynamic = 'force-dynamic';
 
 function checkAuth(req: NextRequest): boolean {
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminPassword) return false;
-  const header = req.headers.get('x-admin-password');
-  return header === adminPassword;
+  return req.headers.get('x-admin-password') === adminPassword;
 }
 
 export async function PUT(req: NextRequest) {
@@ -24,15 +24,13 @@ export async function PUT(req: NextRequest) {
       contact?: string;
     };
 
-    const db = getDb();
-    const upsert = db.prepare(
-      'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-    );
+    const updates: Record<string, unknown> = {};
+    if (next_date !== undefined) updates.next_date = next_date;
+    if (description !== undefined) updates.description = description;
+    if (total_pizzas !== undefined) updates.total_pizzas = Number(total_pizzas);
+    if (contact !== undefined) updates.contact = contact;
 
-    if (next_date !== undefined) upsert.run('next_date', next_date);
-    if (description !== undefined) upsert.run('description', description);
-    if (total_pizzas !== undefined) upsert.run('total_pizzas', String(total_pizzas));
-    if (contact !== undefined) upsert.run('contact', contact);
+    await setDoc(doc(db, 'settings', 'config'), updates, { merge: true });
 
     return NextResponse.json({ success: true });
   } catch (err) {
