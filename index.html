@@ -272,28 +272,22 @@
     return (h % 12 || 12) + (m ? ':' + String(m).padStart(2,'0') : '') + (h >= 12 ? ' PM' : ' AM');
   }
 
-  function availablePickupTimes(qty) {
+  function availablePickupTimes() {
     const { start_time, end_time, booked_slots } = settings;
     if (!start_time || !end_time) return [];
     const startMin = timeToMin(start_time);
     const endMin   = timeToMin(end_time);
     const booked   = new Set(booked_slots || []);
     const result   = [];
-    for (let pickup = startMin + qty * 15; pickup <= endMin; pickup += 15) {
-      let ok = true;
-      for (let i = 1; i <= qty; i++) {
-        if (booked.has(minToTime(pickup - i * 15))) { ok = false; break; }
-      }
-      if (ok) result.push(minToTime(pickup));
+    for (let t = startMin; t < endMin; t += 15) {
+      const slot = minToTime(t);
+      if (!booked.has(slot)) result.push(slot);
     }
     return result;
   }
 
-  function slotsForPickup(pickupTime, qty) {
-    const p = timeToMin(pickupTime);
-    const slots = [];
-    for (let i = 1; i <= qty; i++) slots.push(minToTime(p - i * 15));
-    return slots;
+  function slotsForPickup(pickupTime) {
+    return pickupTime ? [pickupTime] : [];
   }
 
   function updateTimeSlots() {
@@ -302,7 +296,7 @@
     const noMsg  = document.getElementById('no-slots-msg');
     if (!settings.start_time || !settings.end_time) { field.style.display = 'none'; return; }
     field.style.display = '';
-    const times = availablePickupTimes(qty);
+    const times = availablePickupTimes();
     sel.innerHTML = '<option value="">— select a time —</option>';
     times.forEach(t => {
       const o = document.createElement('option');
@@ -426,7 +420,7 @@
     const cancelUrl = base + 'cancel.html?token=' + cancelToken;
     const settingsRef = db.collection('settings').doc('config');
     const reservationRef = db.collection('reservations').doc();
-    const neededSlots = timingEnabled ? slotsForPickup(pickupTime, qty) : [];
+    const neededSlots = timingEnabled ? slotsForPickup(pickupTime) : [];
 
     try {
       await db.runTransaction(async (tx) => {
