@@ -187,7 +187,7 @@
           <input type="text" id="f-name" placeholder="e.g. Maria Rossi" required>
         </div>
         <div class="form-field">
-          <label for="f-email">Email <span style="font-weight:400;color:#a8a29e">(optional — for your cancel link)</span></label>
+          <label for="f-email">Email <span style="font-weight:400;color:#a8a29e">(optional)</span></label>
           <input type="email" id="f-email" placeholder="your@email.com">
         </div>
         <div class="form-field">
@@ -366,6 +366,13 @@
         });
         tx.set(settingsRef, { reserved: res + qty }, { merge: true });
       });
+
+      // Save email to subscribers list for future newsletters
+      if (email) {
+        db.collection('subscribers').doc(email).set({
+          name, email, added_at: new Date().toISOString()
+        }, { merge: true });
+      }
 
       // Update local stats
       settings.reserved = (Number(settings.reserved) || 0) + qty;
