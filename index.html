@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backyard Pizza</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fdf8f3;
+      color: #1c1917;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #7c2d12;
+      color: #fef3c7;
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+    header .emoji { font-size: 2.5rem; margin-bottom: .4rem; }
+    header h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: .02em; }
+    header p { margin-top: .4rem; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; color: #fcd34d; opacity: .85; }
+
+    .flame-bar { height: 5px; background: linear-gradient(to right, #9a3412, #f59e0b, #9a3412); }
+
+    main { flex: 1; max-width: 560px; width: 100%; margin: 0 auto; padding: 2rem 1rem; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e7ddd6;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    .loading { text-align: center; padding: 4rem 0; color: #78716c; }
+    .loading .big { font-size: 3rem; animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: #a8a29e; }
+    .date-line { font-size: 1.3rem; font-weight: 700; color: #7c2d12; margin-top: .2rem; }
+
+    .menu-block { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f0e8e1; }
+    .menu-block p { color: #44403c; line-height: 1.6; white-space: pre-wrap; }
+
+    .stats { display: flex; gap: .75rem; margin-top: 1.25rem; }
+    .stat { flex: 1; background: #fdf8f3; border: 1px solid #e7ddd6; border-radius: .75rem; padding: .75rem; text-align: center; }
+    .stat .num { font-size: 1.6rem; font-weight: 800; }
+    .stat.avail .num { color: #7c2d12; }
+    .stat.reserved .num { color: #78716c; }
+    .stat.total .num { color: #b45309; }
+
+    .section-title { font-size: 1.1rem; font-weight: 700; color: #1c1917; margin-bottom: .25rem; }
+    .section-sub { font-size: .82rem; color: #a8a29e; margin-bottom: 1.25rem; }
+
+    label { display: block; font-size: .82rem; font-weight: 600; color: #57534e; margin-bottom: .3rem; }
+    .req { color: #9a3412; }
+    input[type=text], input[type=email] {
+      width: 100%; border: 1px solid #d6ccc5; border-radius: .5rem;
+      padding: .55rem .75rem; font-size: .95rem; color: #1c1917;
+      transition: box-shadow .15s;
+    }
+    input:focus { outline: none; box-shadow: 0 0 0 3px rgba(180,83,9,.25); border-color: #b45309; }
+    input::placeholder { color: #c4bab3; }
+
+    .qty-row { display: flex; align-items: center; gap: .75rem; }
+    .qty-btn {
+      width: 2.2rem; height: 2.2rem; border-radius: 50%; border: none;
+      background: #fdf8f3; border: 1px solid #e7ddd6; font-size: 1.2rem; font-weight: 700;
+      color: #7c2d12; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .qty-btn:hover { background: #fde8d8; }
+    .qty-num { font-size: 1.5rem; font-weight: 800; color: #7c2d12; width: 2rem; text-align: center; }
+    .qty-hint { font-size: .78rem; color: #a8a29e; }
+
+    .error-box { background: #fef2f2; border: 1px solid #fca5a5; border-radius: .5rem; padding: .6rem .85rem; font-size: .85rem; color: #b91c1c; margin-top: .5rem; }
+
+    .btn-reserve {
+      width: 100%; background: #9a3412; color: #fff; border: none; border-radius: .75rem;
+      padding: .85rem; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .15s;
+      margin-top: .5rem;
+    }
+    .btn-reserve:hover:not(:disabled) { background: #7c2d12; }
+    .btn-reserve:disabled { background: #d4b8ae; cursor: not-allowed; }
+
+    .confirm-icon { font-size: 2.5rem; text-align: center; margin-bottom: .5rem; }
+    .confirm-title { font-size: 1.5rem; font-weight: 800; color: #7c2d12; text-align: center; }
+    .confirm-sub { text-align: center; color: #57534e; margin-top: .4rem; font-size: .95rem; }
+    .cancel-box { background: #fdf8f3; border: 1px solid #e7ddd6; border-radius: .75rem; padding: 1rem; margin-top: 1rem; }
+    .cancel-box .cl { font-size: .8rem; font-weight: 600; color: #57534e; margin-bottom: .4rem; }
+    .cancel-box a { color: #9a3412; font-size: .82rem; word-break: break-all; }
+    .cancel-box .note { font-size: .75rem; color: #a8a29e; margin-top: .5rem; }
+    .contact-line { text-align: center; font-size: .85rem; color: #78716c; margin-top: .5rem; }
+    .contact-line a { color: #1c1917; font-weight: 600; }
+
+    .soldout-icon { font-size: 2.5rem; text-align: center; }
+    .soldout-title { font-size: 1.4rem; font-weight: 800; color: #44403c; text-align: center; margin-top: .5rem; }
+
+    .coming-soon { text-align: center; padding: 2.5rem 0; }
+    .coming-soon .icon { font-size: 3rem; }
+    .coming-soon h2 { font-size: 1.2rem; font-weight: 700; color: #57534e; margin-top: .75rem; }
+    .coming-soon p { font-size: .88rem; color: #a8a29e; margin-top: .4rem; }
+
+    footer { text-align: center; padding: 1.5rem; font-size: .78rem; color: #a8a29e; }
+
+    .form-field { margin-bottom: 1rem; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="emoji">🍕</div>
+  <h1>Backyard Pizza</h1>
+  <p>Wood-fired &middot; Neighborhood &middot; Made with love</p>
+</header>
+<div class="flame-bar"></div>
+
+<main>
+
+  <div id="loading" class="loading">
+    <div class="big">🔥</div>
+    <p style="margin-top:.75rem">Stoking the fire&hellip;</p>
+  </div>
+
+  <div id="content" class="hidden">
+
+    <!-- Info card -->
+    <div class="card" id="info-card">
+      <div id="date-section">
+        <div class="label">Next Pizza Day</div>
+        <div class="date-line" id="display-date"></div>
+      </div>
+      <div class="menu-block" id="menu-block">
+        <div class="label">On the menu</div>
+        <p id="display-menu"></p>
+      </div>
+      <div class="menu-block" id="desc-block">
+        <p id="display-desc" style="color:#78716c;font-size:.9rem"></p>
+      </div>
+      <div class="stats">
+        <div class="stat avail">
+          <div class="num" id="stat-avail">—</div>
+          <div class="label">Slots left</div>
+        </div>
+        <div class="stat reserved">
+          <div class="num" id="stat-reserved">—</div>
+          <div class="label">Reserved</div>
+        </div>
+        <div class="stat total">
+          <div class="num" id="stat-total">—</div>
+          <div class="label">Total</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coming soon -->
+    <div class="card coming-soon hidden" id="coming-soon">
+      <div class="icon">🧱</div>
+      <h2>Check back soon!</h2>
+      <p>The next pizza day hasn't been announced yet.<br>We'll have dates up shortly.</p>
+    </div>
+
+    <!-- Sold out -->
+    <div class="card hidden" id="soldout">
+      <div class="soldout-icon">😔</div>
+      <div class="soldout-title">Sold Out</div>
+      <p style="text-align:center;color:#78716c;margin-top:.5rem;font-size:.9rem">All pizzas for this session have been reserved. Check back next time!</p>
+      <p class="contact-line" id="soldout-contact" style="margin-top:1rem"></p>
+    </div>
+
+    <!-- Reservation form -->
+    <div class="card" id="reserve-form-card">
+      <div class="section-title">Reserve your pizzas</div>
+      <div class="section-sub">Secure your spot before they're gone!</div>
+
+      <form id="reserve-form">
+        <div class="form-field">
+          <label for="f-name">Your name <span class="req">*</span></label>
+          <input type="text" id="f-name" placeholder="e.g. Maria Rossi" required>
+        </div>
+        <div class="form-field">
+          <label for="f-email">Email <span style="font-weight:400;color:#a8a29e">(optional — for your cancel link)</span></label>
+          <input type="email" id="f-email" placeholder="your@email.com">
+        </div>
+        <div class="form-field">
+          <label>How many pizzas?</label>
+          <div class="qty-row">
+            <button type="button" class="qty-btn" id="qty-down">−</button>
+            <span class="qty-num" id="qty-display">1</span>
+            <button type="button" class="qty-btn" id="qty-up">+</button>
+            <span class="qty-hint" id="qty-hint"></span>
+          </div>
+        </div>
+        <div id="form-error" class="error-box hidden"></div>
+        <button type="submit" class="btn-reserve" id="btn-reserve">Reserve my spot 🍕</button>
+      </form>
+    </div>
+
+    <!-- Confirmation -->
+    <div class="card hidden" id="confirmation">
+      <div class="confirm-icon">🎉</div>
+      <div class="confirm-title">You're in!</div>
+      <p class="confirm-sub" id="confirm-sub"></p>
+      <div class="cancel-box">
+        <div class="cl">Your cancel link (bookmark this!):</div>
+        <a id="confirm-cancel-link" href="#"></a>
+        <div class="note">Use this link any time to cancel. No account needed.</div>
+      </div>
+      <p class="contact-line" id="confirm-contact" style="margin-top:1rem"></p>
+    </div>
+
+    <!-- Contact -->
+    <p class="contact-line" id="contact-line"></p>
+
+  </div>
+</main>
+
+<footer>Fired with love &bull; Your neighborhood brick oven</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: 'AIzaSyD3CTrpzVAV4Wu05VGhITXwWpryd-Djk54',
+    authDomain: 'backyard-pizza.firebaseapp.com',
+    projectId: 'backyard-pizza',
+    storageBucket: 'backyard-pizza.firebasestorage.app',
+    messagingSenderId: '795840417546',
+    appId: '1:795840417546:web:b15f564f37ea00cebf74f3'
+  });
+  const db = firebase.firestore();
+
+  const DEFAULTS = {
+    next_date: '', menu: '', description: '', total_pizzas: 12, contact: '', reserved: 0
+  };
+
+  let settings = { ...DEFAULTS };
+  let qty = 1;
+  let maxQty = 4;
+
+  function formatDate(str) {
+    if (!str) return '';
+    return new Date(str + 'T12:00:00').toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+  function show(id) { document.getElementById(id).classList.remove('hidden'); }
+  function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function renderPage() {
+    const totalPizzas = Number(settings.total_pizzas) || 12;
+    const reserved = Number(settings.reserved) || 0;
+    const available = Math.max(0, totalPizzas - reserved);
+    maxQty = Math.min(4, available);
+
+    hide('loading');
+    show('content');
+
+    if (!settings.next_date) {
+      hide('info-card');
+      show('coming-soon');
+      hide('reserve-form-card');
+      hide('soldout');
+      return;
+    }
+
+    show('info-card');
+    hide('coming-soon');
+    document.getElementById('display-date').textContent = formatDate(settings.next_date);
+
+    if (settings.menu) {
+      show('menu-block');
+      document.getElementById('display-menu').textContent = settings.menu;
+    } else {
+      hide('menu-block');
+    }
+
+    if (settings.description) {
+      show('desc-block');
+      document.getElementById('display-desc').textContent = settings.description;
+    } else {
+      hide('desc-block');
+    }
+
+    document.getElementById('stat-avail').textContent = available;
+    document.getElementById('stat-reserved').textContent = reserved;
+    document.getElementById('stat-total').textContent = totalPizzas;
+
+    const contactEl = document.getElementById('contact-line');
+    if (settings.contact) {
+      contactEl.innerHTML = 'Questions? Give us a ring: <a href="tel:' + settings.contact + '">' + settings.contact + '</a>';
+    } else {
+      hide('contact-line');
+    }
+
+    if (available <= 0) {
+      hide('reserve-form-card');
+      show('soldout');
+      const sc = document.getElementById('soldout-contact');
+      if (settings.contact) {
+        sc.innerHTML = 'Want to be on a waitlist? Call: <strong>' + settings.contact + '</strong>';
+      }
+    } else {
+      show('reserve-form-card');
+      hide('soldout');
+      if (qty > maxQty) qty = Math.max(1, maxQty);
+      updateQty();
+    }
+  }
+
+  function updateQty() {
+    document.getElementById('qty-display').textContent = qty;
+    document.getElementById('qty-hint').textContent = '(max ' + maxQty + ')';
+    document.getElementById('qty-down').disabled = qty <= 1;
+    document.getElementById('qty-up').disabled = qty >= maxQty;
+  }
+
+  document.getElementById('qty-down').addEventListener('click', () => { if (qty > 1) { qty--; updateQty(); } });
+  document.getElementById('qty-up').addEventListener('click', () => { if (qty < maxQty) { qty++; updateQty(); } });
+
+  document.getElementById('reserve-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('f-name').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const errorBox = document.getElementById('form-error');
+    hide('form-error');
+
+    if (!name) {
+      errorBox.textContent = 'Please enter your name.';
+      show('form-error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-reserve');
+    btn.disabled = true;
+    btn.textContent = 'Reserving…';
+
+    const cancelToken = crypto.randomUUID();
+    const base = window.location.href.replace(/[^/]*$/, '');
+    const cancelUrl = base + 'cancel.html?token=' + cancelToken;
+    const settingsRef = db.collection('settings').doc('config');
+    const reservationRef = db.collection('reservations').doc();
+
+    try {
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(settingsRef);
+        const s = snap.exists ? snap.data() : {};
+        if (!s.next_date) throw new Error('NO_DATE');
+        const total = Number(s.total_pizzas) || 12;
+        const res = Number(s.reserved) || 0;
+        const avail = total - res;
+        if (qty > avail) throw new Error('INSUFFICIENT:' + avail);
+        tx.set(reservationRef, {
+          name, email: email || null, quantity: qty,
+          cancel_token: cancelToken, cancelled: false,
+          created_at: new Date().toISOString()
+        });
+        tx.set(settingsRef, { reserved: res + qty }, { merge: true });
+      });
+
+      // Update local stats
+      settings.reserved = (Number(settings.reserved) || 0) + qty;
+      document.getElementById('stat-avail').textContent = Math.max(0, Number(settings.total_pizzas) - settings.reserved);
+      document.getElementById('stat-reserved').textContent = settings.reserved;
+
+      const cancelLink = document.getElementById('confirm-cancel-link');
+      cancelLink.href = cancelUrl;
+      cancelLink.textContent = cancelUrl;
+      document.getElementById('confirm-sub').textContent =
+        name + ', your reservation for ' + qty + ' pizza' + (qty > 1 ? 's' : '') + ' is confirmed.';
+
+      if (settings.contact) {
+        document.getElementById('confirm-contact').innerHTML =
+          'Questions? Call: <strong>' + settings.contact + '</strong>';
+      }
+
+      hide('reserve-form-card');
+      show('confirmation');
+
+    } catch (err) {
+      let msg = 'Something went wrong. Please try again.';
+      if (err.message === 'NO_DATE') msg = 'No pizza day is currently scheduled.';
+      else if (err.message && err.message.startsWith('INSUFFICIENT:')) {
+        const left = err.message.split(':')[1];
+        msg = 'Only ' + left + ' slot' + (left === '1' ? '' : 's') + ' remaining.';
+      }
+      errorBox.textContent = msg;
+      show('form-error');
+      btn.disabled = false;
+      btn.textContent = 'Reserve my spot 🍕';
+    }
+  });
+
+  // Load settings
+  db.collection('settings').doc('config').get().then((snap) => {
+    if (snap.exists) settings = { ...DEFAULTS, ...snap.data() };
+    renderPage();
+  }).catch(() => {
+    hide('loading');
+    show('content');
+    show('coming-soon');
+    hide('info-card');
+    hide('reserve-form-card');
+  });
+</script>
+</body>
+</html>

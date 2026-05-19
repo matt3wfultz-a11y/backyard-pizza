@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backyard Pizza — Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f4; color: #1c1917; min-height: 100vh; }
+
+    header { background: #292524; color: #fff; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.15rem; font-weight: 700; }
+    header p { font-size: .78rem; color: #a8a29e; margin-top: .15rem; }
+
+    main { max-width: 700px; margin: 0 auto; padding: 2rem 1rem; }
+
+    .card { background: #fff; border: 1px solid #e7e5e4; border-radius: .85rem; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .card-title { font-size: 1rem; font-weight: 700; color: #1c1917; margin-bottom: 1.25rem; }
+
+    label { display: block; font-size: .82rem; font-weight: 600; color: #57534e; margin-bottom: .3rem; }
+    .hint { font-size: .76rem; color: #a8a29e; font-weight: 400; }
+    input[type=text], input[type=date], input[type=number], input[type=tel], textarea {
+      width: 100%; border: 1px solid #d6d3d1; border-radius: .45rem;
+      padding: .55rem .75rem; font-size: .93rem; color: #1c1917; font-family: inherit;
+      transition: box-shadow .15s;
+    }
+    input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(180,83,9,.2); border-color: #b45309; }
+    textarea { resize: vertical; }
+    input[type=number] { width: 7rem; }
+
+    .form-field { margin-bottom: 1.1rem; }
+    .date-preview { font-size: .78rem; color: #a8a29e; margin-top: .3rem; }
+
+    .btn-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding-top: .5rem; }
+    .btn-save { background: #9a3412; color: #fff; border: none; border-radius: .6rem; padding: .6rem 1.5rem; font-size: .9rem; font-weight: 700; cursor: pointer; transition: background .15s; }
+    .btn-save:hover:not(:disabled) { background: #7c2d12; }
+    .btn-save:disabled { background: #d4b8ae; cursor: not-allowed; }
+    .save-msg { font-size: .85rem; }
+    .save-msg.ok { color: #16a34a; }
+    .save-msg.err { color: #dc2626; }
+
+    .stats { display: flex; gap: .75rem; margin-bottom: 1.25rem; }
+    .stat { flex: 1; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: .65rem; padding: .75rem; text-align: center; }
+    .stat .num { font-size: 1.6rem; font-weight: 800; }
+    .stat.res .num { color: #9a3412; }
+    .stat.avail .num { color: #16a34a; }
+    .stat.tot .num { color: #78716c; }
+    .stat .lbl { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: #a8a29e; margin-top: .1rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    thead tr { border-bottom: 2px solid #f5f5f4; }
+    th { text-align: left; font-size: .75rem; font-weight: 600; color: #a8a29e; padding-bottom: .5rem; padding-right: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+    tbody tr { border-bottom: 1px solid #fafaf9; }
+    tbody tr.cancelled { opacity: .4; }
+    td { padding: .55rem .75rem .55rem 0; color: #44403c; vertical-align: middle; }
+    td.name { font-weight: 600; color: #1c1917; }
+    .badge { display: inline-block; font-size: .72rem; border-radius: 999px; padding: .15rem .6rem; font-weight: 600; }
+    .badge.active { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge.cancelled { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+
+    .reset-row { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #f5f5f4; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .btn-reset { border: none; border-radius: .6rem; padding: .55rem 1.25rem; font-size: .85rem; font-weight: 700; cursor: pointer; transition: background .15s; }
+    .btn-reset.normal { background: #f5f5f4; color: #44403c; }
+    .btn-reset.normal:hover { background: #e7e5e4; }
+    .btn-reset.confirm { background: #dc2626; color: #fff; }
+    .btn-reset.confirm:hover { background: #b91c1c; }
+    .btn-cancel-reset { background: none; border: none; font-size: .82rem; color: #a8a29e; cursor: pointer; }
+    .btn-cancel-reset:hover { color: #57534e; }
+    .reset-msg { font-size: .85rem; color: #16a34a; }
+
+    .empty { text-align: center; color: #a8a29e; font-size: .88rem; padding: 2rem 0; }
+    .refresh-btn { background: none; border: none; font-size: .8rem; color: #a8a29e; cursor: pointer; }
+    .refresh-btn:hover { color: #57534e; }
+
+    .hidden { display: none !important; }
+    .loading { text-align: center; color: #a8a29e; font-size: .88rem; padding: 2rem 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🍕 Backyard Pizza — Admin</h1>
+    <p>Manage your pizza day</p>
+  </div>
+  <a href="index.html" style="font-size:.82rem;color:#a8a29e;text-decoration:none">← View site</a>
+</header>
+
+<main>
+
+  <!-- Settings -->
+  <div class="card">
+    <div class="card-title">Pizza Day Settings</div>
+    <form id="settings-form">
+
+      <div class="form-field">
+        <label for="s-date">Next Pizza Day</label>
+        <input type="date" id="s-date">
+        <div class="date-preview" id="date-preview"></div>
+      </div>
+
+      <div class="form-field">
+        <label for="s-menu">Menu <span class="hint">— what pizzas are you making?</span></label>
+        <textarea id="s-menu" rows="4" placeholder="e.g.&#10;Margherita&#10;Pepperoni&#10;Mushroom &amp; garlic&#10;Seasonal special"></textarea>
+      </div>
+
+      <div class="form-field">
+        <label for="s-desc">Extra notes <span class="hint">— pickup instructions, timing, etc.</span></label>
+        <textarea id="s-desc" rows="2" placeholder="e.g. Pickup between 5–8pm. Bring your own container!"></textarea>
+      </div>
+
+      <div class="form-field">
+        <label for="s-total">Total pizzas available</label>
+        <input type="number" id="s-total" min="1" max="500" value="12">
+      </div>
+
+      <div class="form-field">
+        <label for="s-contact">Contact phone <span class="hint">— shown to customers</span></label>
+        <input type="tel" id="s-contact" placeholder="e.g. (555) 867-5309" style="max-width:260px">
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn-save" id="btn-save">Save Settings</button>
+        <span class="save-msg hidden" id="save-msg"></span>
+      </div>
+    </form>
+  </div>
+
+  <!-- Reservations -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+      <div class="card-title" style="margin-bottom:0">Reservations</div>
+      <button class="refresh-btn" id="refresh-btn">↻ Refresh</button>
+    </div>
+
+    <div id="res-loading" class="loading">Loading…</div>
+
+    <div id="res-content" class="hidden">
+      <div class="stats">
+        <div class="stat res"><div class="num" id="r-reserved">0</div><div class="lbl">Reserved</div></div>
+        <div class="stat avail"><div class="num" id="r-available">0</div><div class="lbl">Available</div></div>
+        <div class="stat tot"><div class="num" id="r-total">0</div><div class="lbl">Total</div></div>
+      </div>
+
+      <div id="res-table-wrap">
+        <div id="res-empty" class="empty hidden">No reservations yet.</div>
+        <table id="res-table" class="hidden">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th style="text-align:center">Qty</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="res-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="reset-row">
+        <button class="btn-reset normal" id="btn-reset">Reset Reservations</button>
+        <button class="btn-cancel-reset hidden" id="btn-cancel-reset">Cancel</button>
+        <span class="reset-msg hidden" id="reset-msg"></span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: 'AIzaSyD3CTrpzVAV4Wu05VGhITXwWpryd-Djk54',
+    authDomain: 'backyard-pizza.firebaseapp.com',
+    projectId: 'backyard-pizza',
+    storageBucket: 'backyard-pizza.firebasestorage.app',
+    messagingSenderId: '795840417546',
+    appId: '1:795840417546:web:b15f564f37ea00cebf74f3'
+  });
+  const db = firebase.firestore();
+  const settingsRef = db.collection('settings').doc('config');
+
+  function show(id) { document.getElementById(id).classList.remove('hidden'); }
+  function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function formatDate(str) {
+    if (!str) return '';
+    return new Date(str + 'T12:00:00').toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+  function formatDateTime(str) {
+    if (!str) return '';
+    return new Date(str).toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit'
+    });
+  }
+
+  // Load settings into form
+  async function loadSettings() {
+    try {
+      const snap = await settingsRef.get();
+      const s = snap.exists ? snap.data() : {};
+      document.getElementById('s-date').value = s.next_date || '';
+      document.getElementById('s-menu').value = s.menu || '';
+      document.getElementById('s-desc').value = s.description || '';
+      document.getElementById('s-total').value = s.total_pizzas || 12;
+      document.getElementById('s-contact').value = s.contact || '';
+      updateDatePreview();
+    } catch (e) {
+      console.error('Failed to load settings', e);
+    }
+  }
+
+  function updateDatePreview() {
+    const val = document.getElementById('s-date').value;
+    document.getElementById('date-preview').textContent = val ? formatDate(val) : '';
+  }
+  document.getElementById('s-date').addEventListener('change', updateDatePreview);
+
+  // Save settings
+  document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save');
+    const msg = document.getElementById('save-msg');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    hide('save-msg');
+
+    try {
+      await settingsRef.set({
+        next_date: document.getElementById('s-date').value,
+        menu: document.getElementById('s-menu').value.trim(),
+        description: document.getElementById('s-desc').value.trim(),
+        total_pizzas: Number(document.getElementById('s-total').value) || 12,
+        contact: document.getElementById('s-contact').value.trim(),
+      }, { merge: true });
+      msg.textContent = 'Saved!';
+      msg.className = 'save-msg ok';
+      show('save-msg');
+      setTimeout(() => hide('save-msg'), 3000);
+      loadReservations();
+    } catch (err) {
+      msg.textContent = 'Failed to save. Try again.';
+      msg.className = 'save-msg err';
+      show('save-msg');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Settings';
+    }
+  });
+
+  // Load reservations
+  async function loadReservations() {
+    hide('res-content');
+    show('res-loading');
+    try {
+      const [settingsSnap, resSnap] = await Promise.all([
+        settingsRef.get(),
+        db.collection('reservations').orderBy('created_at', 'desc').get()
+      ]);
+      const s = settingsSnap.exists ? settingsSnap.data() : {};
+      const totalPizzas = Number(s.total_pizzas) || 12;
+      const reserved = Number(s.reserved) || 0;
+      const available = Math.max(0, totalPizzas - reserved);
+
+      document.getElementById('r-reserved').textContent = reserved;
+      document.getElementById('r-available').textContent = available;
+      document.getElementById('r-total').textContent = totalPizzas;
+
+      const tbody = document.getElementById('res-tbody');
+      tbody.innerHTML = '';
+
+      if (resSnap.empty) {
+        show('res-empty');
+        hide('res-table');
+      } else {
+        hide('res-empty');
+        show('res-table');
+        resSnap.forEach((doc) => {
+          const r = doc.data();
+          const tr = document.createElement('tr');
+          if (r.cancelled) tr.classList.add('cancelled');
+          tr.innerHTML = `
+            <td class="name">${escHtml(r.name)}</td>
+            <td style="color:#78716c">${r.email ? escHtml(r.email) : '<em style="color:#d6d3d1">—</em>'}</td>
+            <td style="text-align:center;font-weight:700">${r.quantity}</td>
+            <td><span class="badge ${r.cancelled ? 'cancelled' : 'active'}">${r.cancelled ? 'Cancelled' : 'Active'}</span></td>
+            <td style="color:#a8a29e;font-size:.78rem">${formatDateTime(r.created_at)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      hide('res-loading');
+      show('res-content');
+    } catch (err) {
+      console.error('Failed to load reservations', err);
+      hide('res-loading');
+      show('res-content');
+    }
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  document.getElementById('refresh-btn').addEventListener('click', loadReservations);
+
+  // Reset reservations
+  let resetConfirm = false;
+  const btnReset = document.getElementById('btn-reset');
+  const btnCancelReset = document.getElementById('btn-cancel-reset');
+
+  btnReset.addEventListener('click', async () => {
+    if (!resetConfirm) {
+      resetConfirm = true;
+      btnReset.textContent = 'Confirm Reset — Clear All';
+      btnReset.className = 'btn-reset confirm';
+      show('btn-cancel-reset');
+      return;
+    }
+    try {
+      const snap = await db.collection('reservations').get();
+      const batch = db.batch();
+      snap.forEach((doc) => batch.delete(doc.ref));
+      batch.set(settingsRef, { reserved: 0 }, { merge: true });
+      await batch.commit();
+      document.getElementById('reset-msg').textContent = 'All reservations cleared.';
+      show('reset-msg');
+      setTimeout(() => hide('reset-msg'), 4000);
+      resetConfirm = false;
+      btnReset.textContent = 'Reset Reservations';
+      btnReset.className = 'btn-reset normal';
+      hide('btn-cancel-reset');
+      loadReservations();
+    } catch (err) {
+      document.getElementById('reset-msg').textContent = 'Failed to reset.';
+      show('reset-msg');
+    }
+  });
+
+  btnCancelReset.addEventListener('click', () => {
+    resetConfirm = false;
+    btnReset.textContent = 'Reset Reservations';
+    btnReset.className = 'btn-reset normal';
+    hide('btn-cancel-reset');
+  });
+
+  // Init
+  loadSettings();
+  loadReservations();
+</script>
+</body>
+</html>
