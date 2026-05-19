@@ -80,6 +80,16 @@
     .qty-num { font-size: 1.5rem; font-weight: 800; color: #7c2d12; width: 2rem; text-align: center; }
     .qty-hint { font-size: .78rem; color: #a8a29e; }
 
+    .time-field { margin-top: 1rem; }
+    .time-select {
+      width: 100%; border: 1px solid #d6ccc5; border-radius: .5rem;
+      padding: .55rem .75rem; font-size: .95rem; color: #1c1917;
+      background: #fff; cursor: pointer; transition: box-shadow .15s;
+    }
+    .time-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(180,83,9,.25); border-color: #b45309; }
+    .time-select:disabled { background: #fafaf9; color: #a8a29e; cursor: not-allowed; }
+    .no-slots-msg { font-size: .82rem; color: #b45309; margin-top: .4rem; }
+
     .error-box { background: #fef2f2; border: 1px solid #fca5a5; border-radius: .5rem; padding: .6rem .85rem; font-size: .85rem; color: #b91c1c; margin-top: .5rem; }
 
     .btn-reserve {
@@ -199,6 +209,13 @@
             <span class="qty-hint" id="qty-hint"></span>
           </div>
         </div>
+        <div class="form-field time-field" id="time-field" style="display:none">
+          <label for="f-time">Pickup time <span class="req">*</span></label>
+          <select class="time-select" id="f-time">
+            <option value="">— select a time —</option>
+          </select>
+          <div class="no-slots-msg hidden" id="no-slots-msg">No available times for this quantity. Try fewer pizzas.</div>
+        </div>
         <div id="form-error" class="error-box hidden"></div>
         <button type="submit" class="btn-reserve" id="btn-reserve">Reserve my spot 🍕</button>
       </form>
@@ -239,12 +256,62 @@
   const db = firebase.firestore();
 
   const DEFAULTS = {
-    next_date: '', menu: '', description: '', total_pizzas: 12, contact: '', reserved: 0
+    next_date: '', menu: '', description: '', total_pizzas: 12, contact: '',
+    reserved: 0, start_time: '', end_time: '', booked_slots: []
   };
 
   let settings = { ...DEFAULTS };
   let qty = 1;
   let maxQty = 4;
+
+  // ---- Time slot helpers ----
+  function timeToMin(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+  function minToTime(m) { return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'); }
+  function fmt12(t) {
+    const [h, m] = t.split(':').map(Number);
+    return (h % 12 || 12) + (m ? ':' + String(m).padStart(2,'0') : '') + (h >= 12 ? ' PM' : ' AM');
+  }
+
+  function availablePickupTimes(qty) {
+    const { start_time, end_time, booked_slots } = settings;
+    if (!start_time || !end_time) return [];
+    const startMin = timeToMin(start_time);
+    const endMin   = timeToMin(end_time);
+    const booked   = new Set(booked_slots || []);
+    const result   = [];
+    for (let pickup = startMin + qty * 15; pickup <= endMin; pickup += 15) {
+      let ok = true;
+      for (let i = 1; i <= qty; i++) {
+        if (booked.has(minToTime(pickup - i * 15))) { ok = false; break; }
+      }
+      if (ok) result.push(minToTime(pickup));
+    }
+    return result;
+  }
+
+  function slotsForPickup(pickupTime, qty) {
+    const p = timeToMin(pickupTime);
+    const slots = [];
+    for (let i = 1; i <= qty; i++) slots.push(minToTime(p - i * 15));
+    return slots;
+  }
+
+  function updateTimeSlots() {
+    const field  = document.getElementById('time-field');
+    const sel    = document.getElementById('f-time');
+    const noMsg  = document.getElementById('no-slots-msg');
+    if (!settings.start_time || !settings.end_time) { field.style.display = 'none'; return; }
+    field.style.display = '';
+    const times = availablePickupTimes(qty);
+    sel.innerHTML = '<option value="">— select a time —</option>';
+    times.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t; o.textContent = fmt12(t);
+      sel.appendChild(o);
+    });
+    if (times.length === 0) { noMsg.classList.remove('hidden'); sel.style.display = 'none'; }
+    else { noMsg.classList.add('hidden'); sel.style.display = ''; }
+  }
 
   function formatDate(str) {
     if (!str) return '';
@@ -314,6 +381,7 @@
       hide('soldout');
       if (qty > maxQty) qty = Math.max(1, maxQty);
       updateQty();
+      updateTimeSlots();
     }
   }
 
@@ -322,6 +390,7 @@
     document.getElementById('qty-hint').textContent = '(max ' + maxQty + ')';
     document.getElementById('qty-down').disabled = qty <= 1;
     document.getElementById('qty-up').disabled = qty >= maxQty;
+    updateTimeSlots();
   }
 
   document.getElementById('qty-down').addEventListener('click', () => { if (qty > 1) { qty--; updateQty(); } });
@@ -340,6 +409,14 @@
       return;
     }
 
+    const pickupTime = document.getElementById('f-time').value;
+    const timingEnabled = !!(settings.start_time && settings.end_time);
+    if (timingEnabled && !pickupTime) {
+      errorBox.textContent = 'Please select a pickup time.';
+      show('form-error');
+      return;
+    }
+
     const btn = document.getElementById('btn-reserve');
     btn.disabled = true;
     btn.textContent = 'Reserving…';
@@ -349,6 +426,7 @@
     const cancelUrl = base + 'cancel.html?token=' + cancelToken;
     const settingsRef = db.collection('settings').doc('config');
     const reservationRef = db.collection('reservations').doc();
+    const neededSlots = timingEnabled ? slotsForPickup(pickupTime, qty) : [];
 
     try {
       await db.runTransaction(async (tx) => {
@@ -359,12 +437,24 @@
         const res = Number(s.reserved) || 0;
         const avail = total - res;
         if (qty > avail) throw new Error('INSUFFICIENT:' + avail);
+        if (timingEnabled) {
+          const booked = new Set(s.booked_slots || []);
+          for (const slot of neededSlots) {
+            if (booked.has(slot)) throw new Error('SLOT_TAKEN');
+          }
+        }
         tx.set(reservationRef, {
           name, email: email || null, quantity: qty,
+          pickup_time: pickupTime || null,
+          booked_slots: neededSlots,
           cancel_token: cancelToken, cancelled: false,
           created_at: new Date().toISOString()
         });
-        tx.set(settingsRef, { reserved: res + qty }, { merge: true });
+        const update = { reserved: res + qty };
+        if (timingEnabled && neededSlots.length) {
+          update.booked_slots = firebase.firestore.FieldValue.arrayUnion(...neededSlots);
+        }
+        tx.set(settingsRef, update, { merge: true });
       });
 
       // Save email to subscribers list for future newsletters
@@ -382,8 +472,9 @@
       const cancelLink = document.getElementById('confirm-cancel-link');
       cancelLink.href = cancelUrl;
       cancelLink.textContent = cancelUrl;
+      const pickupStr = pickupTime ? ' — pickup at ' + fmt12(pickupTime) : '';
       document.getElementById('confirm-sub').textContent =
-        name + ', your reservation for ' + qty + ' pizza' + (qty > 1 ? 's' : '') + ' is confirmed.';
+        name + ', your reservation for ' + qty + ' pizza' + (qty > 1 ? 's' : '') + ' is confirmed' + pickupStr + '.';
 
       if (settings.contact) {
         document.getElementById('confirm-contact').innerHTML =
@@ -396,6 +487,7 @@
     } catch (err) {
       let msg = 'Something went wrong. Please try again.';
       if (err.message === 'NO_DATE') msg = 'No pizza day is currently scheduled.';
+      else if (err.message === 'SLOT_TAKEN') { msg = 'That time slot was just taken. Please choose another.'; updateTimeSlots(); }
       else if (err.message && err.message.startsWith('INSUFFICIENT:')) {
         const left = err.message.split(':')[1];
         msg = 'Only ' + left + ' slot' + (left === '1' ? '' : 's') + ' remaining.';

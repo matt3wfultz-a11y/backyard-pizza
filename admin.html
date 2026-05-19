@@ -115,6 +115,22 @@
       </div>
 
       <div class="form-field">
+        <label>Serving hours <span class="hint">— customers pick a pickup time; each pizza takes 15 min</span></label>
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-top:.25rem">
+          <div>
+            <label for="s-start" style="font-size:.75rem;margin-bottom:.2rem;color:#a8a29e">From</label>
+            <input type="time" id="s-start" style="width:auto">
+          </div>
+          <span style="color:#a8a29e;margin-top:1rem">to</span>
+          <div>
+            <label for="s-end" style="font-size:.75rem;margin-bottom:.2rem;color:#a8a29e">To</label>
+            <input type="time" id="s-end" style="width:auto">
+          </div>
+        </div>
+        <div class="hint" style="margin-top:.4rem">Leave blank to hide time slot selection from customers.</div>
+      </div>
+
+      <div class="form-field">
         <label for="s-contact">Contact phone <span class="hint">— shown to customers</span></label>
         <input type="tel" id="s-contact" placeholder="e.g. (555) 867-5309" style="max-width:260px">
       </div>
@@ -150,8 +166,9 @@
               <th>Name</th>
               <th>Email</th>
               <th style="text-align:center">Qty</th>
+              <th>Pickup</th>
               <th>Status</th>
-              <th>Time</th>
+              <th>Ordered</th>
             </tr>
           </thead>
           <tbody id="res-tbody"></tbody>
@@ -192,6 +209,11 @@
     });
   }
 
+  function fmt12(t) {
+    const [h, m] = t.split(':').map(Number);
+    return (h % 12 || 12) + (m ? ':' + String(m).padStart(2,'0') : '') + (h >= 12 ? ' PM' : ' AM');
+  }
+
   function formatDateTime(str) {
     if (!str) return '';
     return new Date(str).toLocaleString('en-US', {
@@ -209,6 +231,8 @@
       document.getElementById('s-menu').value = s.menu || '';
       document.getElementById('s-desc').value = s.description || '';
       document.getElementById('s-total').value = s.total_pizzas || 12;
+      document.getElementById('s-start').value = s.start_time || '';
+      document.getElementById('s-end').value = s.end_time || '';
       document.getElementById('s-contact').value = s.contact || '';
       updateDatePreview();
     } catch (e) {
@@ -237,6 +261,8 @@
         menu: document.getElementById('s-menu').value.trim(),
         description: document.getElementById('s-desc').value.trim(),
         total_pizzas: Number(document.getElementById('s-total').value) || 12,
+        start_time: document.getElementById('s-start').value,
+        end_time: document.getElementById('s-end').value,
         contact: document.getElementById('s-contact').value.trim(),
       }, { merge: true });
       msg.textContent = 'Saved!';
@@ -289,6 +315,7 @@
             <td class="name">${escHtml(r.name)}</td>
             <td style="color:#78716c">${r.email ? escHtml(r.email) : '<em style="color:#d6d3d1">—</em>'}</td>
             <td style="text-align:center;font-weight:700">${r.quantity}</td>
+            <td style="color:#57534e;font-size:.85rem">${r.pickup_time ? fmt12(r.pickup_time) : '<em style="color:#d6d3d1">—</em>'}</td>
             <td><span class="badge ${r.cancelled ? 'cancelled' : 'active'}">${r.cancelled ? 'Cancelled' : 'Active'}</span></td>
             <td style="color:#a8a29e;font-size:.78rem">${formatDateTime(r.created_at)}</td>
           `;
@@ -328,7 +355,7 @@
       const snap = await db.collection('reservations').get();
       const batch = db.batch();
       snap.forEach((doc) => batch.delete(doc.ref));
-      batch.set(settingsRef, { reserved: 0 }, { merge: true });
+      batch.set(settingsRef, { reserved: 0, booked_slots: [] }, { merge: true });
       await batch.commit();
       document.getElementById('reset-msg').textContent = 'All reservations cleared.';
       show('reset-msg');

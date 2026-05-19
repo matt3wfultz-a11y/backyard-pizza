@@ -162,7 +162,12 @@
         const currentReserved = settingsSnap.exists ? Number(settingsSnap.data().reserved) || 0 : 0;
         tx.update(reservationRef, { cancelled: true });
         if (settingsSnap.exists) {
-          tx.update(settingsRef, { reserved: Math.max(0, currentReserved - reservationData.quantity) });
+          const settingsUpdate = { reserved: Math.max(0, currentReserved - reservationData.quantity) };
+          const slots = reservationData.booked_slots;
+          if (slots && slots.length) {
+            settingsUpdate.booked_slots = firebase.firestore.FieldValue.arrayRemove(...slots);
+          }
+          tx.update(settingsRef, settingsUpdate);
         }
       });
       hide('state-found');
