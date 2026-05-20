@@ -131,8 +131,13 @@
       </div>
 
       <div class="form-field">
-        <label for="s-contact">Contact phone <span class="hint">— shown to customers</span></label>
+        <label for="s-contact">Contact phone <span class="hint">— customers text you when they arrive</span></label>
         <input type="tel" id="s-contact" placeholder="e.g. (555) 867-5309" style="max-width:260px">
+      </div>
+
+      <div class="form-field">
+        <label for="s-address">Address <span class="hint">— shown on the homepage</span></label>
+        <input type="text" id="s-address" placeholder="e.g. 17705 Westlake Dr" style="max-width:340px">
       </div>
 
       <div class="btn-row">
@@ -234,6 +239,7 @@
       document.getElementById('s-start').value = s.start_time || '';
       document.getElementById('s-end').value = s.end_time || '';
       document.getElementById('s-contact').value = s.contact || '';
+      document.getElementById('s-address').value = s.address || '';
       updateDatePreview();
     } catch (e) {
       console.error('Failed to load settings', e);
@@ -264,6 +270,7 @@
         start_time: document.getElementById('s-start').value,
         end_time: document.getElementById('s-end').value,
         contact: document.getElementById('s-contact').value.trim(),
+        address: document.getElementById('s-address').value.trim(),
       }, { merge: true });
       msg.textContent = 'Saved!';
       msg.className = 'save-msg ok';

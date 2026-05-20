@@ -118,6 +118,16 @@
     .coming-soon h2 { font-size: 1.2rem; font-weight: 700; color: #57534e; margin-top: .75rem; }
     .coming-soon p { font-size: .88rem; color: #a8a29e; margin-top: .4rem; }
 
+    .hero-photo { width: 100%; height: 220px; object-fit: cover; object-position: center 40%; display: block; }
+
+    .about-card { padding: 1.5rem; }
+    .about-card h2 { font-size: 1.05rem; font-weight: 800; color: #7c2d12; margin-bottom: .85rem; letter-spacing: .01em; }
+    .about-card p { font-size: .93rem; color: #44403c; line-height: 1.7; margin-bottom: .75rem; }
+    .about-card p:last-of-type { margin-bottom: 0; }
+    .about-details { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f0e8e1; display: flex; flex-direction: column; gap: .45rem; }
+    .about-detail { font-size: .9rem; color: #44403c; }
+    .about-detail strong { color: #1c1917; }
+
     footer { text-align: center; padding: 1.5rem; font-size: .78rem; color: #a8a29e; }
 
     .form-field { margin-bottom: 1rem; }
@@ -132,6 +142,7 @@
   <p>Wood-fired &middot; Neighborhood &middot; Made with love</p>
 </header>
 <div class="flame-bar"></div>
+<img src="backyard.jpg" alt="The backyard view" class="hero-photo">
 
 <main>
 
@@ -141,6 +152,18 @@
   </div>
 
   <div id="content" class="hidden">
+
+    <!-- About -->
+    <div class="card about-card">
+      <h2>Hey, welcome! Here's how this works</h2>
+      <p>I'm one person doing this out of my backyard because I genuinely love making wood-fired pizza and sharing it with neighbors. I set the dates myself as I go — right now I'm keeping it to <strong>Friday nights</strong> to keep things manageable.</p>
+      <p>When a date is set, it'll show up here. <strong>Leave your email when you reserve</strong> and I'll send you a heads-up before each one so you never miss it.</p>
+      <p>Pick your time slot, choose how many pizzas you want, and show up hungry. Just text me when you pull up and I'll bring them out.</p>
+      <div class="about-details">
+        <div class="about-detail" id="about-address" style="display:none">📍 <strong id="display-address"></strong></div>
+        <div class="about-detail" id="about-phone" style="display:none">📱 Text me when you're here: <strong id="display-phone"></strong></div>
+      </div>
+    </div>
 
     <!-- Info card -->
     <div class="card" id="info-card">
@@ -257,7 +280,7 @@
 
   const DEFAULTS = {
     next_date: '', menu: '', description: '', total_pizzas: 12, contact: '',
-    reserved: 0, start_time: '', end_time: '', booked_slots: []
+    address: '', reserved: 0, start_time: '', end_time: '', booked_slots: []
   };
 
   let settings = { ...DEFAULTS };
@@ -355,6 +378,17 @@
     document.getElementById('stat-avail').textContent = available;
     document.getElementById('stat-reserved').textContent = reserved;
     document.getElementById('stat-total').textContent = totalPizzas;
+
+    const addrEl = document.getElementById('about-address');
+    const phoneEl = document.getElementById('about-phone');
+    if (settings.address) {
+      document.getElementById('display-address').textContent = settings.address;
+      addrEl.style.display = '';
+    } else { addrEl.style.display = 'none'; }
+    if (settings.contact) {
+      document.getElementById('display-phone').textContent = settings.contact;
+      phoneEl.style.display = '';
+    } else { phoneEl.style.display = 'none'; }
 
     const contactEl = document.getElementById('contact-line');
     if (settings.contact) {
