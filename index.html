@@ -410,7 +410,7 @@
 
     const contactEl = document.getElementById('contact-line');
     if (settings.contact) {
-      contactEl.innerHTML = 'Questions? Give us a ring: <a href="tel:' + settings.contact + '">' + settings.contact + '</a>';
+      contactEl.innerHTML = 'Questions? Text me: <a href="sms:' + settings.contact + '">' + settings.contact + '</a>';
     } else {
       hide('contact-line');
     }
