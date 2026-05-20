@@ -12,7 +12,10 @@
 
     body {
       font-family: 'Lora', Georgia, serif;
-      background: #fdf8f3;
+      background-color: #fef3c7;
+      background-image: url('pizza-pattern.jpg');
+      background-repeat: repeat;
+      background-size: 380px;
       color: #1c1917;
       min-height: 100vh;
       display: flex;
@@ -20,11 +23,23 @@
     }
 
     header {
-      background: #7c2d12;
+      background: linear-gradient(150deg, #2d0a04 0%, #7c2d12 50%, #b45309 100%);
       color: #fef3c7;
       padding: 2rem 1rem;
       text-align: center;
+      position: relative;
+      overflow: hidden;
     }
+    header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.07;
+      mix-blend-mode: overlay;
+      pointer-events: none;
+    }
+    header > * { position: relative; }
     header .emoji { font-size: 2.5rem; margin-bottom: .4rem; }
     header h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 2.6rem; font-weight: 800; letter-spacing: .01em; }
     header p { margin-top: .4rem; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: #fcd34d; opacity: .85; font-family: 'Lora', Georgia, serif; }
