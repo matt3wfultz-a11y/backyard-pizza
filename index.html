@@ -146,7 +146,7 @@
     .about-detail { font-size: .9rem; color: #44403c; }
     .about-detail strong { color: #1c1917; }
 
-    footer { text-align: center; padding: 1.5rem; font-size: .78rem; color: #a8a29e; }
+    footer { text-align: center; padding: 1.5rem; font-size: .78rem; color: #57534e; background: rgba(255,255,255,0.6); backdrop-filter: blur(2px); }
 
     .form-field { margin-bottom: 1rem; }
     .hidden { display: none !important; }
@@ -420,7 +420,7 @@
       show('soldout');
       const sc = document.getElementById('soldout-contact');
       if (settings.contact) {
-        sc.innerHTML = 'Want to be on a waitlist? Call: <strong>' + settings.contact + '</strong>';
+        sc.innerHTML = 'Want to be on a waitlist? Text: <strong>' + settings.contact + '</strong>';
       }
     } else {
       show('reserve-form-card');
@@ -524,7 +524,7 @@
 
       if (settings.contact) {
         document.getElementById('confirm-contact').innerHTML =
-          'Questions? Call: <strong>' + settings.contact + '</strong>';
+          'Questions? Text: <strong>' + settings.contact + '</strong>';
       }
 
       hide('reserve-form-card');
