@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Backyard Pizza</title>
+  <meta name="description" content="Wood-fired pizza made in a neighborhood backyard. Check the next pizza day and reserve your pizzas.">
+  <meta name="theme-color" content="#7c2d12">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍕</text></svg>">
+  <!-- Open Graph / social sharing. Set og:url and make og:image an absolute URL for reliable link previews. -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Backyard Pizza">
+  <meta property="og:description" content="Wood-fired pizza made in a neighborhood backyard. Check the next pizza day and reserve your pizzas.">
+  <meta property="og:image" content="backyard.jpg">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Lora:wght@400;600&display=swap" rel="stylesheet">
@@ -155,7 +164,7 @@
 <body>
 
 <header>
-  <div class="emoji">🍕</div>
+  <div class="emoji" aria-hidden="true">🍕</div>
   <h1>Backyard Pizza</h1>
   <p>Wood-fired &middot; Neighborhood &middot; Made with love</p>
 </header>
@@ -164,8 +173,8 @@
 
 <main>
 
-  <div id="loading" class="loading">
-    <div class="big">🔥</div>
+  <div id="loading" class="loading" role="status" aria-live="polite">
+    <div class="big" aria-hidden="true">🔥</div>
     <p style="margin-top:.75rem">Stoking the fire&hellip;</p>
   </div>
 
@@ -244,9 +253,9 @@
         <div class="form-field">
           <label>How many pizzas?</label>
           <div class="qty-row">
-            <button type="button" class="qty-btn" id="qty-down">−</button>
-            <span class="qty-num" id="qty-display">1</span>
-            <button type="button" class="qty-btn" id="qty-up">+</button>
+            <button type="button" class="qty-btn" id="qty-down" aria-label="Decrease quantity">−</button>
+            <span class="qty-num" id="qty-display" aria-live="polite" aria-label="Quantity">1</span>
+            <button type="button" class="qty-btn" id="qty-up" aria-label="Increase quantity">+</button>
             <span class="qty-hint" id="qty-hint"></span>
           </div>
         </div>
@@ -257,7 +266,7 @@
           </select>
           <div class="no-slots-msg hidden" id="no-slots-msg">No available times for this quantity. Try fewer pizzas.</div>
         </div>
-        <div id="form-error" class="error-box hidden"></div>
+        <div id="form-error" class="error-box hidden" role="alert" aria-live="assertive"></div>
         <button type="submit" class="btn-reserve" id="btn-reserve">Reserve my spot 🍕</button>
       </form>
     </div>
