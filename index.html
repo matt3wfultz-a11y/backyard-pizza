@@ -72,6 +72,8 @@
 
     .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: #a8a29e; }
     .date-line { font-family: 'Playfair Display', Georgia, serif; font-size: 1.3rem; font-weight: 700; color: #7c2d12; margin-top: .2rem; }
+    .price-badge { display: inline-block; margin-top: .55rem; background: #7c2d12; color: #fef3c7; font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: .95rem; padding: .2rem .75rem; border-radius: 999px; }
+    .kitchen-note { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f0e8e1; font-size: .8rem; color: #78716c; line-height: 1.55; }
 
     .menu-block { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f0e8e1; }
     .menu-block p { color: #44403c; line-height: 1.6; white-space: pre-wrap; }
@@ -145,7 +147,7 @@
     .coming-soon h2 { font-size: 1.2rem; font-weight: 700; color: #57534e; margin-top: .75rem; }
     .coming-soon p { font-size: .88rem; color: #a8a29e; margin-top: .4rem; }
 
-    .hero-photo { width: 100%; height: 220px; object-fit: cover; object-position: center 40%; display: block; }
+    .hero-photo { width: 100%; height: 240px; object-fit: cover; object-position: center 70%; display: block; }
 
     .about-card { padding: 1.5rem; }
     .about-card h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.15rem; font-weight: 700; color: #7c2d12; margin-bottom: .85rem; }
@@ -182,14 +184,15 @@
 
     <!-- About -->
     <div class="card about-card">
-      <h2>Hey, welcome! Here's how this works</h2>
-      <p>I'm one person doing this out of my backyard because I genuinely love making wood-fired pizza and sharing it with neighbors. I set the dates myself as I go — right now I'm keeping it to <strong>Friday nights</strong> to keep things manageable.</p>
-      <p>When a date is set, it'll show up here. <strong>Leave your email when you reserve</strong> and I'll send you a heads-up before each one so you never miss it.</p>
-      <p>Pick your time slot, choose how many pizzas you want, and show up hungry. Just text me when you pull up and I'll bring them out.</p>
+      <h2>How this works</h2>
+      <p>It's just me and a wood-fired oven out back. I make the dough from scratch — a sourdough that <strong>cold-ferments for three days</strong> before it hits the fire, which is what gives the crust its blister, chew, and a little tang.</p>
+      <p>Since it's a one-person thing, I make <strong>one pizza each week</strong> in a limited batch. I'll post the date, what I'm making, and the price for that night — when it's up, you'll see it right here.</p>
+      <p>Reserve a spot with <strong>just your name</strong>, pick a pickup time, and tell me how many you want. Come by hungry and text me when you pull up — I'll bring them out hot.</p>
       <div class="about-details">
         <div class="about-detail" id="about-address" style="display:none">📍 <strong id="display-address"></strong></div>
         <div class="about-detail" id="about-phone" style="display:none">📱 Text me when you're here: <strong id="display-phone"></strong></div>
       </div>
+      <p class="kitchen-note">🏠 Made in a home kitchen — not a licensed commercial facility — that also handles wheat, dairy, and other common allergens. Reserve at your own discretion.</p>
     </div>
 
     <!-- Info card -->
@@ -197,6 +200,7 @@
       <div id="date-section">
         <div class="label">Next Pizza Day</div>
         <div class="date-line" id="display-date"></div>
+        <div class="price-badge" id="price-badge" style="display:none"></div>
       </div>
       <div class="menu-block" id="menu-block">
         <div class="label">On the menu</div>
@@ -244,11 +248,7 @@
       <form id="reserve-form">
         <div class="form-field">
           <label for="f-name">Your name <span class="req">*</span></label>
-          <input type="text" id="f-name" placeholder="e.g. Maria Rossi" required>
-        </div>
-        <div class="form-field">
-          <label for="f-email">Email <span style="font-weight:400;color:#a8a29e">(optional)</span></label>
-          <input type="email" id="f-email" placeholder="your@email.com">
+          <input type="text" id="f-name" placeholder="e.g. Maria Rossi" maxlength="80" required>
         </div>
         <div class="form-field">
           <label>How many pizzas?</label>
@@ -277,9 +277,8 @@
       <div class="confirm-title">You're in!</div>
       <p class="confirm-sub" id="confirm-sub"></p>
       <div class="cancel-box">
-        <div class="cl">Your cancel link (bookmark this!):</div>
-        <a id="confirm-cancel-link" href="#"></a>
-        <div class="note">Use this link any time to cancel. No account needed.</div>
+        <div class="cl">Need to cancel?</div>
+        <div class="note" id="confirm-cancel-note">Just text me and I'll free up your spot for someone else.</div>
       </div>
       <p class="contact-line" id="confirm-contact" style="margin-top:1rem"></p>
     </div>
@@ -306,7 +305,7 @@
   const db = firebase.firestore();
 
   const DEFAULTS = {
-    next_date: '', menu: '', description: '', total_pizzas: 12, contact: '',
+    next_date: '', menu: '', description: '', total_pizzas: 12, price: '', contact: '',
     address: '', reserved: 0, start_time: '', end_time: '', booked_slots: []
   };
 
@@ -366,6 +365,9 @@
 
   function show(id) { document.getElementById(id).classList.remove('hidden'); }
   function hide(id) { document.getElementById(id).classList.add('hidden'); }
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   function renderPage() {
     const totalPizzas = Number(settings.total_pizzas) || 12;
@@ -387,6 +389,15 @@
     show('info-card');
     hide('coming-soon');
     document.getElementById('display-date').textContent = formatDate(settings.next_date);
+
+    const priceBadge = document.getElementById('price-badge');
+    const priceNum = Number(settings.price);
+    if (settings.price !== '' && settings.price != null && !isNaN(priceNum) && priceNum > 0) {
+      priceBadge.textContent = '$' + (Number.isInteger(priceNum) ? priceNum : priceNum.toFixed(2)) + ' each';
+      priceBadge.style.display = '';
+    } else {
+      priceBadge.style.display = 'none';
+    }
 
     if (settings.menu) {
       show('menu-block');
@@ -419,7 +430,8 @@
 
     const contactEl = document.getElementById('contact-line');
     if (settings.contact) {
-      contactEl.innerHTML = 'Questions? Text me: <a href="sms:' + settings.contact + '">' + settings.contact + '</a>';
+      const c = escHtml(settings.contact);
+      contactEl.innerHTML = 'Questions? Text me: <a href="sms:' + encodeURIComponent(settings.contact) + '">' + c + '</a>';
     } else {
       hide('contact-line');
     }
@@ -429,7 +441,7 @@
       show('soldout');
       const sc = document.getElementById('soldout-contact');
       if (settings.contact) {
-        sc.innerHTML = 'Want to be on a waitlist? Text: <strong>' + settings.contact + '</strong>';
+        sc.innerHTML = 'Want to be on a waitlist? Text: <strong>' + escHtml(settings.contact) + '</strong>';
       }
     } else {
       show('reserve-form-card');
@@ -454,7 +466,6 @@
   document.getElementById('reserve-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('f-name').value.trim();
-    const email = document.getElementById('f-email').value.trim();
     const errorBox = document.getElementById('form-error');
     hide('form-error');
 
@@ -476,9 +487,6 @@
     btn.disabled = true;
     btn.textContent = 'Reserving…';
 
-    const cancelToken = crypto.randomUUID();
-    const base = window.location.href.replace(/[^/]*$/, '');
-    const cancelUrl = base + 'cancel.html?token=' + cancelToken;
     const settingsRef = db.collection('settings').doc('config');
     const reservationRef = db.collection('reservations').doc();
     const neededSlots = timingEnabled ? slotsForPickup(pickupTime) : [];
@@ -499,10 +507,10 @@
           }
         }
         tx.set(reservationRef, {
-          name, email: email || null, quantity: qty,
+          name, quantity: qty,
           pickup_time: pickupTime || null,
           booked_slots: neededSlots,
-          cancel_token: cancelToken, cancelled: false,
+          cancelled: false,
           created_at: new Date().toISOString()
         });
         const update = { reserved: res + qty };
@@ -512,28 +520,20 @@
         tx.set(settingsRef, update, { merge: true });
       });
 
-      // Save email to subscribers list for future newsletters
-      if (email) {
-        db.collection('subscribers').doc(email).set({
-          name, email, added_at: new Date().toISOString()
-        }, { merge: true });
-      }
-
       // Update local stats
       settings.reserved = (Number(settings.reserved) || 0) + qty;
       document.getElementById('stat-avail').textContent = Math.max(0, Number(settings.total_pizzas) - settings.reserved);
       document.getElementById('stat-reserved').textContent = settings.reserved;
 
-      const cancelLink = document.getElementById('confirm-cancel-link');
-      cancelLink.href = cancelUrl;
-      cancelLink.textContent = cancelUrl;
       const pickupStr = pickupTime ? ' — pickup at ' + fmt12(pickupTime) : '';
       document.getElementById('confirm-sub').textContent =
         name + ', your reservation for ' + qty + ' pizza' + (qty > 1 ? 's' : '') + ' is confirmed' + pickupStr + '.';
 
       if (settings.contact) {
+        document.getElementById('confirm-cancel-note').innerHTML =
+          'Just text <strong>' + escHtml(settings.contact) + '</strong> and I\'ll free up your spot for someone else.';
         document.getElementById('confirm-contact').innerHTML =
-          'Questions? Text: <strong>' + settings.contact + '</strong>';
+          'Questions? Text: <strong>' + escHtml(settings.contact) + '</strong>';
       }
 
       hide('reserve-form-card');

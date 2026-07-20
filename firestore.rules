@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// Security rules for Backyard Pizza.
+//
+// Goals:
+//   - The public site can read the current pizza day and create a reservation.
+//   - Only the signed-in owner can see the reservation list, cancel a
+//     reservation, or change the settings (date, menu, price, etc.).
+//
+// NOTE: because the reservation flow runs entirely in the browser (no server),
+// the live "reserved / booked_slots" counter has to stay publicly writable so a
+// reservation can update it. A determined person could therefore nudge that
+// counter. For a small backyard operation that's an acceptable trade-off;
+// closing it completely would require a Cloud Function to own the write.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Public site config + live reservation counter ----
+    match /settings/config {
+      allow read: if true;
+
+      // Owner (signed in) can change anything.
+      allow write: if request.auth != null;
+
+      // The public reservation flow may only bump the two counter fields —
+      // never the date, menu, price, contact, etc.
+      allow update: if request.auth != null
+        || request.resource.data.diff(resource.data)
+             .affectedKeys().hasOnly(['reserved', 'booked_slots']);
+    }
+
+    // ---- Reservations ----
+    match /reservations/{id} {
+      // Anyone can create a reservation, but only with a sane shape.
+      allow create: if request.resource.data.keys().hasOnly(
+                        ['name', 'quantity', 'pickup_time', 'booked_slots', 'cancelled', 'created_at'])
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 80
+                    && request.resource.data.quantity is number
+                    && request.resource.data.quantity >= 1
+                    && request.resource.data.quantity <= 20
+                    && request.resource.data.cancelled == false;
+
+      // Only the owner can read, change (cancel), or delete reservations.
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // Anything not matched above is denied by default.
+  }
+}

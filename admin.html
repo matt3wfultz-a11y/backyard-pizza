@@ -24,7 +24,7 @@
 
     label { display: block; font-size: .82rem; font-weight: 600; color: #57534e; margin-bottom: .3rem; }
     .hint { font-size: .76rem; color: #a8a29e; font-weight: 400; }
-    input[type=text], input[type=date], input[type=number], input[type=tel], textarea {
+    input[type=text], input[type=date], input[type=number], input[type=tel], input[type=email], input[type=password], textarea {
       width: 100%; border: 1px solid #d6d3d1; border-radius: .45rem;
       padding: .55rem .75rem; font-size: .93rem; color: #1c1917; font-family: inherit;
       transition: box-shadow .15s;
@@ -63,6 +63,14 @@
     .badge.active { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
     .badge.cancelled { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
+    .btn-row-cancel { border: 1px solid #fca5a5; background: #fff; color: #dc2626; border-radius: .4rem; padding: .2rem .6rem; font-size: .78rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+    .btn-row-cancel:hover { background: #fef2f2; }
+    .btn-row-cancel:disabled { opacity: .5; cursor: not-allowed; }
+
+    .login-wrap { max-width: 380px; margin: 3rem auto; }
+    .signout-btn { background: none; border: 1px solid #57534e; color: #d6d3d1; border-radius: .4rem; padding: .3rem .8rem; font-size: .78rem; cursor: pointer; }
+    .signout-btn:hover { background: #3f3a37; }
+
     .reset-row { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #f5f5f4; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .btn-reset { border: none; border-radius: .6rem; padding: .55rem 1.25rem; font-size: .85rem; font-weight: 700; cursor: pointer; transition: background .15s; }
     .btn-reset.normal { background: #f5f5f4; color: #44403c; }
@@ -88,10 +96,38 @@
     <h1>🍕 Backyard Pizza — Admin</h1>
     <p>Manage your pizza day</p>
   </div>
-  <a href="index.html" style="font-size:.82rem;color:#a8a29e;text-decoration:none">← View site</a>
+  <div style="display:flex;align-items:center;gap:1rem">
+    <button class="signout-btn hidden" id="signout-btn">Sign out</button>
+    <a href="index.html" style="font-size:.82rem;color:#a8a29e;text-decoration:none">← View site</a>
+  </div>
 </header>
 
 <main>
+
+  <!-- Login gate -->
+  <div id="login-gate" class="card login-wrap hidden">
+    <div class="card-title">Admin Login</div>
+    <form id="login-form">
+      <div class="form-field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="username" required>
+      </div>
+      <div class="form-field">
+        <label for="login-pass">Password</label>
+        <input type="password" id="login-pass" autocomplete="current-password" required>
+      </div>
+      <div class="btn-row">
+        <button type="submit" class="btn-save" id="login-btn">Log in</button>
+        <span class="save-msg err hidden" id="login-err"></span>
+      </div>
+    </form>
+  </div>
+
+  <!-- Auth loading -->
+  <div id="auth-loading" class="loading">Checking sign-in…</div>
+
+  <!-- Admin content (shown once signed in) -->
+  <div id="admin-content" class="hidden">
 
   <!-- Settings -->
   <div class="card">
@@ -117,6 +153,11 @@
       <div class="form-field">
         <label for="s-total">Total pizzas available</label>
         <input type="number" id="s-total" min="1" max="500" value="12">
+      </div>
+
+      <div class="form-field">
+        <label for="s-price">Price per pizza this week <span class="hint">— shown on the homepage; leave blank to hide</span></label>
+        <input type="number" id="s-price" min="0" step="0.5" placeholder="12" style="width:9rem">
       </div>
 
       <div class="form-field">
@@ -174,11 +215,11 @@
           <thead>
             <tr>
               <th>Name</th>
-              <th>Email</th>
               <th style="text-align:center">Qty</th>
               <th>Pickup</th>
               <th>Status</th>
               <th>Ordered</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="res-tbody"></tbody>
@@ -193,9 +234,12 @@
     </div>
   </div>
 
+  </div><!-- /admin-content -->
+
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
   firebase.initializeApp({
@@ -207,7 +251,14 @@
     appId: '1:795840417546:web:b15f564f37ea00cebf74f3'
   });
   const db = firebase.firestore();
+  const auth = firebase.auth();
   const settingsRef = db.collection('settings').doc('config');
+
+  // Tracks the currently-saved pizza date so we can detect when it changes.
+  let savedDate = '';
+  let savedReserved = 0;
+  // Cache of the loaded reservations, keyed by doc id, for per-row cancel.
+  const resMap = {};
 
   function show(id) { document.getElementById(id).classList.remove('hidden'); }
   function hide(id) { document.getElementById(id).classList.add('hidden'); }
@@ -241,10 +292,13 @@
       document.getElementById('s-menu').value = s.menu || '';
       document.getElementById('s-desc').value = s.description || '';
       document.getElementById('s-total').value = s.total_pizzas || 12;
+      document.getElementById('s-price').value = (s.price === 0 || s.price) ? s.price : '';
       document.getElementById('s-start').value = s.start_time || '';
       document.getElementById('s-end').value = s.end_time || '';
       document.getElementById('s-contact').value = s.contact || '';
       document.getElementById('s-address').value = s.address || '';
+      savedDate = s.next_date || '';
+      savedReserved = Number(s.reserved) || 0;
       updateDatePreview();
     } catch (e) {
       console.error('Failed to load settings', e);
@@ -262,21 +316,53 @@
     e.preventDefault();
     const btn = document.getElementById('btn-save');
     const msg = document.getElementById('save-msg');
+
+    const newDate = document.getElementById('s-date').value;
+    const dateChanged = !!newDate && newDate !== savedDate;
+
+    // A new pizza day starts a clean slate — clear last week's reservations.
+    if (dateChanged && savedReserved > 0) {
+      const ok = confirm('Starting a new pizza day will clear ' + savedReserved +
+        ' reservation(s) from the previous day. Continue?');
+      if (!ok) return;
+    }
+
+    const priceStr = document.getElementById('s-price').value.trim();
+
     btn.disabled = true;
     btn.textContent = 'Saving…';
     hide('save-msg');
 
     try {
-      await settingsRef.set({
-        next_date: document.getElementById('s-date').value,
+      const payload = {
+        next_date: newDate,
         menu: document.getElementById('s-menu').value.trim(),
         description: document.getElementById('s-desc').value.trim(),
         total_pizzas: Number(document.getElementById('s-total').value) || 12,
+        price: priceStr === '' ? '' : Number(priceStr),
         start_time: document.getElementById('s-start').value,
         end_time: document.getElementById('s-end').value,
         contact: document.getElementById('s-contact').value.trim(),
         address: document.getElementById('s-address').value.trim(),
-      }, { merge: true });
+      };
+      if (dateChanged) {
+        payload.reserved = 0;
+        payload.booked_slots = [];
+      }
+      await settingsRef.set(payload, { merge: true });
+
+      if (dateChanged) {
+        const oldRes = await db.collection('reservations').get();
+        if (!oldRes.empty) {
+          const batch = db.batch();
+          oldRes.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+
+      savedDate = newDate;
+      savedReserved = dateChanged ? 0 : savedReserved;
+
       msg.textContent = 'Saved!';
       msg.className = 'save-msg ok';
       show('save-msg');
@@ -305,6 +391,7 @@
       const totalPizzas = Number(s.total_pizzas) || 12;
       const reserved = Number(s.reserved) || 0;
       const available = Math.max(0, totalPizzas - reserved);
+      savedReserved = reserved;
 
       document.getElementById('r-reserved').textContent = reserved;
       document.getElementById('r-available').textContent = available;
@@ -312,6 +399,7 @@
 
       const tbody = document.getElementById('res-tbody');
       tbody.innerHTML = '';
+      Object.keys(resMap).forEach((k) => delete resMap[k]);
 
       if (resSnap.empty) {
         show('res-empty');
@@ -321,15 +409,16 @@
         show('res-table');
         resSnap.forEach((doc) => {
           const r = doc.data();
+          resMap[doc.id] = r;
           const tr = document.createElement('tr');
           if (r.cancelled) tr.classList.add('cancelled');
           tr.innerHTML = `
             <td class="name">${escHtml(r.name)}</td>
-            <td style="color:#78716c">${r.email ? escHtml(r.email) : '<em style="color:#d6d3d1">—</em>'}</td>
             <td style="text-align:center;font-weight:700">${r.quantity}</td>
             <td style="color:#57534e;font-size:.85rem">${r.pickup_time ? fmt12(r.pickup_time) : '<em style="color:#d6d3d1">—</em>'}</td>
             <td><span class="badge ${r.cancelled ? 'cancelled' : 'active'}">${r.cancelled ? 'Cancelled' : 'Active'}</span></td>
             <td style="color:#a8a29e;font-size:.78rem">${formatDateTime(r.created_at)}</td>
+            <td style="text-align:right">${r.cancelled ? '' : `<button class="btn-row-cancel" data-cancel-id="${escHtml(doc.id)}">Cancel</button>`}</td>
           `;
           tbody.appendChild(tr);
         });
@@ -349,6 +438,39 @@
   }
 
   document.getElementById('refresh-btn').addEventListener('click', loadReservations);
+
+  // Cancel a single reservation on the customer's behalf (they text to cancel).
+  document.getElementById('res-tbody').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-cancel-id]');
+    if (btn) cancelReservation(btn.getAttribute('data-cancel-id'), btn);
+  });
+
+  async function cancelReservation(id, btn) {
+    const r = resMap[id];
+    if (!r || r.cancelled) return;
+    if (!confirm('Cancel ' + r.name + '’s reservation for ' + r.quantity +
+      ' pizza' + (r.quantity > 1 ? 's' : '') + '? This frees the slot(s).')) return;
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Cancelling…'; }
+    const resRef = db.collection('reservations').doc(id);
+    try {
+      await db.runTransaction(async (tx) => {
+        const [sSnap, rSnap] = await Promise.all([tx.get(settingsRef), tx.get(resRef)]);
+        if (!rSnap.exists || rSnap.data().cancelled) throw new Error('ALREADY');
+        const cur = sSnap.exists ? Number(sSnap.data().reserved) || 0 : 0;
+        tx.update(resRef, { cancelled: true });
+        const upd = { reserved: Math.max(0, cur - (Number(r.quantity) || 0)) };
+        if (r.booked_slots && r.booked_slots.length) {
+          upd.booked_slots = firebase.firestore.FieldValue.arrayRemove(...r.booked_slots);
+        }
+        tx.set(settingsRef, upd, { merge: true });
+      });
+      loadReservations();
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Cancel'; }
+      loadReservations();
+    }
+  }
 
   // Reset reservations
   let resetConfirm = false;
@@ -390,9 +512,50 @@
     hide('btn-cancel-reset');
   });
 
-  // Init
-  loadSettings();
-  loadReservations();
+  // ---- Auth gate ----
+  let bootstrapped = false;
+
+  auth.onAuthStateChanged((user) => {
+    hide('auth-loading');
+    if (user) {
+      hide('login-gate');
+      show('admin-content');
+      show('signout-btn');
+      if (!bootstrapped) {
+        bootstrapped = true;
+        loadSettings();
+        loadReservations();
+      }
+    } else {
+      hide('admin-content');
+      hide('signout-btn');
+      show('login-gate');
+    }
+  });
+
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const err = document.getElementById('login-err');
+    hide('login-err');
+    btn.disabled = true;
+    btn.textContent = 'Logging in…';
+    try {
+      await auth.signInWithEmailAndPassword(
+        document.getElementById('login-email').value.trim(),
+        document.getElementById('login-pass').value
+      );
+      document.getElementById('login-pass').value = '';
+    } catch (e2) {
+      err.textContent = 'Login failed — check your email and password.';
+      show('login-err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Log in';
+    }
+  });
+
+  document.getElementById('signout-btn').addEventListener('click', () => auth.signOut());
 </script>
 </body>
 </html>
